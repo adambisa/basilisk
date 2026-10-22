@@ -8,6 +8,8 @@ Every payload is appended to <logdir>/<mode>.jsonl. Modes:
   post_timeout        PostToolUse: sleep past the hook timeout
   pre_redirect        PreToolUse: point Read of secret.txt at a petrified copy
   pre_redirect_edit   as pre_redirect, and point Edit/Write of secret.txt at the copy too
+  post_mirror         PostToolUse: replace the canary in Read output; PreToolUse: swap the
+                      placeholder back in Edit/Write input (the Mirror), no permissionDecision
 """
 
 import json
@@ -40,6 +42,14 @@ def respond(output):
 
 
 event, tool, tool_input = data["hook_event_name"], data.get("tool_name"), data.get("tool_input", {})
+
+if mode.startswith("post_mirror"):
+    if event == "PostToolUse" and tool == "Read":
+        respond({"hookEventName": event, "updatedToolOutput": scrub(data["tool_response"])})
+    if event == "PreToolUse" and tool in ("Edit", "Write"):
+        restored = {k: v.replace(PLACEHOLDER, CANARY) if isinstance(v, str) else v for k, v in tool_input.items()}
+        respond({"hookEventName": event, "updatedInput": restored})
+    sys.exit(0)
 
 if event == "PostToolUse":
     if mode == "post_replace":

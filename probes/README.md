@@ -11,6 +11,10 @@ Each probe runs headless Claude Code (Haiku) in a fresh temp project. The projec
 | `post_bad`, `post_crash`, `post_timeout` | Does the original reach the model when the hook returns the wrong shape, crashes or times out? |
 | `pre_redirect` | Does `updatedInput` apply without a `permissionDecision`, and does Edit work after a redirected Read? |
 | `pre_redirect_edit` | Does Edit work when it's pointed at the petrified copy too? |
+| `post_mirror` | After a petrified Read, does Edit work, and can `PreToolUse` swap placeholders back in Edit input? |
+| `post_mirror_write` | Can `PreToolUse` swap placeholders back in Write input (the Mirror)? Bash is disabled. |
+
+Results are in [docs/design.md](../docs/design.md), under "Probe results".
 
 ```bash
 probes/run.sh            # all modes

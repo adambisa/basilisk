@@ -17,6 +17,8 @@ Basilisk is a downloadable plugin for Claude Code and Codex that stops PII and s
 
 ## Petrify mode (Claude Code)
 
+> **Superseded in part by the probe results below.** Redirecting Read to a petrified copy makes the file uneditable, so Layer 1 can't be the primary layer for Read. Output rewriting works for Read, and the Mirror works through Write but not through Edit. See "Probe results". This section gets rewritten once the new layering is agreed.
+
 Petrify uses two layers. Rewriting inputs is the primary layer because it fails closed: the raw data never enters Claude Code, and if Basilisk fails, the tool reads a file that doesn't exist and errors. Rewriting outputs is the second layer, for tools that have no input to rewrite.
 
 ### Layer 1: rewrite inputs (`PreToolUse`)
@@ -203,13 +205,43 @@ basilisk/
   * a small local Go binary with no Python or model required
 * **Jev (TypeSafe AI), optional and off by default:** a cloud pass on already-petrified text, for context questions ("does this still identify a person?") and Bash command risk scoring. The README states exactly what gets sent.
 
-## Open questions (verify before building)
+## Probe results (Claude Code 2.1.287, 2026-10-22)
 
-The experiments in [probes/](../probes/) answer the first four.
+Run with `probes/run.sh`: headless Haiku, synthetic canary, one fresh temp project per probe.
 
-1. **Redirected reads:** does `PreToolUse` `updatedInput` take effect without a `permissionDecision`? Does an Edit work after a Read that was redirected to the petrified copy, and does pointing the Edit at the copy too avoid the problem?
-2. **Transcript contents:** after `updatedToolOutput`, does the transcript on disk keep the original output or the replacement? If it keeps the original, resuming a session or compaction could feed it back to the model.
-3. **Fail-open cases:** when a `PostToolUse` hook returns the wrong shape, crashes or times out, does the original output reach the model?
-4. **Output shapes:** what are the exact `updatedToolOutput` shapes for Read, Grep, Glob, NotebookRead and WebFetch?
-5. **`@file` mentions:** does `UserPromptSubmit` see the contents of `@`-mentioned files?
-6. **Codex details:** the minimum version for each hook event, and whether Codex has built-in read tools besides shell that `PreToolUse` covers.
+| Question | Result |
+| :- | :- |
+| `updatedToolOutput` on Read | Works. The model sees only the placeholder, and the transcript on disk stores only the replacement. |
+| Read's output shape | `{type: "text", file: {filePath, content, numLines, startLine, totalLines}}` |
+| Wrong shape, hook crash (exit 1), hook timeout | **All three leak.** The original output reaches the model unchanged. |
+| `updatedInput` without `permissionDecision` | Applies (seen on Read and Write, in acceptEdits mode). |
+| Read redirected to a petrified copy | The read works, but **the file can't be edited afterwards**: Edit fails with "File has not been read yet". |
+| Edit pointed at the copy as well | Doesn't help. The Edit's `PreToolUse` hook never fires. |
+| Edit after a petrified Read (output rewriting) | Works when `old_string` has no placeholder. |
+| Edit whose `old_string` contains a placeholder | **Fails** with "String to replace not found". The hook never fires, so the Mirror can't swap the value back. |
+| Write with placeholders (the Mirror) | Works. `PreToolUse` swaps them back, and the real file gets the real values. |
+| Where real values still land on disk | Write's `toolUseResult` (`content`, `originalFile`) and the logged hook stdout in the transcript. Neither is model-visible, and the values are in the real file anyway. |
+| Model behaviour after failed Edits | With Bash available, the model ran `od -c` on the file and read the real value as a character dump. |
+
+What this means for the design:
+
+1. **Claude Code validates before running hooks.** For Edit, "was it read?" and "does `old_string` exist?" are both checked before `PreToolUse`. Any design that makes the model's view of a file differ from the file breaks one of them.
+2. **For Read, output rewriting is the only workable layer.** It fails open on wrong shape, crash or timeout, so Basilisk must be built so that none of those happen:
+   * pinned output shapes, checked in CI
+   * no panics
+   * the default 600s timeout instead of a short one
+   * a `PreToolUse` deny for tools whose shape isn't pinned
+3. **The Mirror needs another route for Edit.** Write works. For an Edit whose `old_string` contains a placeholder, candidates are:
+   * a `PostToolUseFailure` hook that tells the model to use Write or `basilisk edit` instead
+   * a Basilisk-provided edit command
+
+   Whether `PostToolUseFailure` fires for validation errors is untested.
+4. **Bash is the bypass.** The model will read files through Bash when its other tools fail. Bash output must be petrified too, and since the vault knows the exact real values, Basilisk can match them in common encodings (raw, `od -c`, hex, base64), not just with detectors.
+
+## Open questions
+
+1. **`@file` mentions:** does `UserPromptSubmit` see the contents of `@`-mentioned files?
+2. **`PostToolUseFailure`:** does it fire for Edit's validation errors, and can it add context the model sees?
+3. **Output shapes for other tools:** Grep, Glob, NotebookRead and WebFetch.
+4. **Permission modes:** does `updatedInput` without a decision also apply in default mode, or does it change what the permission prompt shows?
+5. **Codex details:** the minimum version for each hook event, and whether Codex has built-in read tools besides shell that `PreToolUse` covers.

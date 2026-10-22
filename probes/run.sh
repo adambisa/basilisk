@@ -9,17 +9,24 @@ runs="$here/.runs/$(date +%Y%m%d-%H%M%S)"
 canary=CANARY_ORIGINAL_7f3a9
 placeholder='⟦SECRET_1⟧'
 
-read_prompt='Use the Read tool to read secret.txt, then reply with the exact value of api_key, verbatim, nothing else.'
-edit_prompt='Use the Read tool to read secret.txt. Then use the Edit tool on secret.txt to change name = "demo" to name = "probe". Finally reply with the exact value of api_key, verbatim, nothing else.'
+read_prompt='Use the Read tool to read secret.txt, then reply with the exact value of project_code, verbatim, nothing else.'
+edit_prompt='Use the Read tool to read secret.txt. Then use the Edit tool on secret.txt to change name = "demo" to name = "probe". Finally reply with the exact value of project_code, verbatim, nothing else.'
+mirror_prompt='Use the Read tool to read secret.txt. Then use the Edit tool on secret.txt twice: change name = "demo" to name = "probe", and add the comment " # checked" at the end of the project_code line. Finally reply with the exact value of project_code, verbatim, nothing else.'
+
+write_prompt='Use the Read tool to read secret.txt. Then use the Write tool to rewrite secret.txt with exactly the same two lines plus a third line: checked = true. Finally reply with the exact value of project_code, verbatim, nothing else.'
 
 modes=("$@")
-[ ${#modes[@]} -eq 0 ] && modes=(log post_replace post_bad post_crash post_timeout pre_redirect pre_redirect_edit)
+[ ${#modes[@]} -eq 0 ] && modes=(log post_replace post_bad post_crash post_timeout pre_redirect pre_redirect_edit post_mirror post_mirror_write)
 
 hook_cmd() { echo "python3 -I $here/hook.py $1 $runs/$2"; }
 
 settings() {
   local mode=$1
-  if [[ $mode == pre_* ]]; then
+  if [[ $mode == post_mirror* ]]; then
+    jq -n --arg h "$(hook_cmd "$mode" "$mode")" '{hooks: {
+      PreToolUse: [{matcher: "Edit|Write", hooks: [{type: "command", command: $h}]}],
+      PostToolUse: [{matcher: "Read", hooks: [{type: "command", command: $h}]}]}}'
+  elif [[ $mode == pre_* ]]; then
     jq -n --arg pre "$(hook_cmd "$mode" "$mode")" --arg post "$(hook_cmd log "$mode")" '{hooks: {
       PreToolUse: [{matcher: "Read|Edit|Write", hooks: [{type: "command", command: $pre}]}],
       PostToolUse: [{matcher: "Read|Edit|Write", hooks: [{type: "command", command: $post}]}]}}'
@@ -35,15 +42,19 @@ probe() {
   local mode=$1 out="$runs/$1" proj prompt
   mkdir -p "$out"
   proj=$(mktemp -d)
-  printf 'api_key = "%s"\nname = "demo"\n' "$canary" > "$proj/secret.txt"
+  printf 'project_code = "%s"\nname = "demo"\n' "$canary" > "$proj/secret.txt"
   settings "$mode" > "$out/settings.json"
   prompt=$read_prompt
   [[ $mode == pre_* ]] && prompt=$edit_prompt
+  [[ $mode == post_mirror ]] && prompt=$mirror_prompt
+  [[ $mode == post_mirror_write ]] && prompt=$write_prompt
+  local extra=()
+  [[ $mode == post_mirror* ]] && extra=(--disallowedTools Bash)
 
   # Clean env so the desktop app's session variables don't leak into the child CLI.
   (cd "$proj" && env -i HOME="$HOME" PATH="$PATH" USER="$USER" TERM="${TERM:-xterm}" \
     claude -p "$prompt" --model haiku --setting-sources project,local \
-      --settings "$out/settings.json" --permission-mode acceptEdits --output-format json) \
+      --settings "$out/settings.json" --permission-mode acceptEdits --output-format json "${extra[@]}") \
     > "$out/result.json" 2> "$out/stderr.txt"
 
   local sid transcript
