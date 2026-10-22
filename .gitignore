@@ -1,0 +1,11 @@
+# Go
+/basilisk
+/dist/
+*.test
+*.out
+
+# Probe runs
+/probes/.runs/
+
+# OS
+.DS_Store
