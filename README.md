@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/icon/basilisk-dark.svg">
+    <img src="assets/icon/basilisk.svg" alt="Basilisk" width="160">
+  </picture>
+</p>
+
 # Basilisk
 
 A plugin for Claude Code and Codex that stops PII and secrets from reaching the model.
