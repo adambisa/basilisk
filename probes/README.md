@@ -13,6 +13,9 @@ Each probe runs headless Claude Code (Haiku) in a fresh temp project. The projec
 | `pre_redirect_edit` | Does Edit work when it's pointed at the petrified copy too? |
 | `post_mirror` | After a petrified Read, does Edit work, and can `PreToolUse` swap placeholders back in Edit input? |
 | `post_mirror_write` | Can `PreToolUse` swap placeholders back in Write input (the Mirror)? Bash is disabled. |
+| `ctx_note` | Does the model see `additionalContext` from a `PostToolUse` hook? |
+| `fail_note` | Does `PostToolUseFailure` fire for Edit's "string not found" error? |
+| `shapes` | What do Grep, Glob and Bash outputs look like? |
 
 Results are in [docs/design.md](../docs/design.md), under "Probe results".
 

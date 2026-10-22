@@ -17,27 +17,37 @@ Basilisk is a downloadable plugin for Claude Code and Codex that stops PII and s
 
 ## Petrify mode (Claude Code)
 
-> **Superseded in part by the probe results below.** Redirecting Read to a petrified copy makes the file uneditable, so Layer 1 can't be the primary layer for Read. Output rewriting works for Read, and the Mirror works through Write but not through Edit. See "Probe results". This section gets rewritten once the new layering is agreed.
+Built on the probe results below. Claude Code checks a tool call against the real file before any hook runs, so the model's view of a file can differ from the file only in the tool's *output*, never its input. Petrify therefore rewrites outputs, swaps placeholders back in Write input, and steers the model away from editing placeholder lines with Edit.
 
-Petrify uses two layers. Rewriting inputs is the primary layer because it fails closed: the raw data never enters Claude Code, and if Basilisk fails, the tool reads a file that doesn't exist and errors. Rewriting outputs is the second layer, for tools that have no input to rewrite.
+The tools to cover are Read, Bash, Write and Edit. In Claude Code 2.1.287 there are no separate Grep or Glob tools: the model searches with `grep` and `ls` through Bash. NotebookEdit, WebFetch and MCP tools are added once their output shapes are pinned.
 
-### Layer 1: rewrite inputs (`PreToolUse`)
+### Reads: rewrite outputs (`PostToolUse`)
 
-* **Read:** the hook writes a petrified copy of the file to `.basilisk/petrified/<path>` and uses `updatedInput` to point `file_path` at it. The model only sees placeholders like `⟦IBAN_1⟧` or `⟦PERSON_2⟧`.
-* **Writes (the Mirror):** Edit and Write are pointed at the same petrified copy. The model's `old_string` already matches the copy, since both contain placeholders. After the tool runs, Basilisk un-petrifies the copy and writes the result to the real file. If the real file changed since the copy was made, Basilisk refuses the write instead of guessing.
-* **Bash:** read-only commands on an allowlist (`cat`, `head`, `tail`, `rg`, `grep`, `jq`, `wc`) are rewritten to pipe through `basilisk petrify`, with `pipefail` so the exit code survives. Other commands that touch protected paths are denied.
-* **Costs:**
-  * Claude Code checks the user's permission rules against the rewritten input, so a rule for the real path or command no longer matches. That means more prompts, not leaks.
-  * Basilisk never pairs `updatedInput` with `"allow"`, because that skips the user's permission prompt.
+* **Read:**
+  * `updatedToolOutput` replaces `file.content` with the petrified text, keeping the shape `{type: "text", file: {filePath, content, numLines, startLine, totalLines}}`.
+  * Placeholders don't change the line count, so line numbers still match the real file. Claude Code records the real file as read, so Edit keeps working.
+  * The transcript stores only the replacement.
+* **Bash:** `updatedToolOutput` petrifies `stdout` and `stderr`, keeping `{stdout, stderr, interrupted, isImage, noOutputExpected}`. Two checks work alongside the detectors:
+  * **Vault matching.** The vault knows the exact values already petrified this session, so Basilisk also finds them in dumped encodings: `od -c`, `xxd`/hex, base64. In the probes, the model reached for `od -c` once its edits failed.
+  * **Dump commands.** Basilisk denies dump commands (`od`, `xxd`, `hexdump`, `base64`, `strings`) aimed at a file it has petrified.
+* **File names** in Bash output (`ls`, `grep -l`, `find`) are petrified like any other text.
 
-### Layer 2: rewrite outputs (`PostToolUse`)
+### This layer fails open, so it is built not to fail
 
-* **Coverage:** Grep, Glob, NotebookRead, WebFetch, MCP tools, and Bash commands outside the allowlist. `updatedToolOutput` replaces what the model sees after the tool runs, and it works for built-in tools, not only MCP.
-* **File names:** Glob results and paths in Grep output are petrified too (`clients/⟦PERSON_3⟧.pdf`).
-* **This layer fails open.** A replacement that doesn't match the tool's output schema is silently ignored, and the original goes to the model. Only the Bash shape is documented (`stdout`, `stderr`, `interrupted`, `isImage`).
-  * Basilisk captures each tool's shape from real calls and pins it as a golden fixture. CI tests every fixture against new Claude Code releases.
-  * In petrify mode, `PreToolUse` denies any tool without a pinned shape up front.
-* **The raw output still exists inside Claude Code** before the hook replaces it. If the user has OpenTelemetry enabled, it records the original. Whether the transcript stores the original is an open question.
+A wrong-shaped replacement, a crashing hook and a timed-out hook all send the original output to the model. Basilisk guards against each:
+
+* **No crash path.** Every panic is recovered. On any internal error, the hook returns a replacement that withholds the whole output (`[basilisk: output withheld]`), never nothing.
+* **No short timeout.** Hooks keep Claude Code's 600s default.
+* **Pinned shapes.** The output shape of each covered tool is a golden fixture, checked in CI against each new Claude Code release. A `PreToolUse` hook denies any tool whose shape isn't pinned, with a reason telling the model to use Read or Bash.
+* **Pre-scan.** `PreToolUse` on Read scans the file first. A file with nothing to petrify needs no rewrite, so most reads never touch the fail-open path.
+* **OpenTelemetry.** If the user has it enabled, Claude Code records the original output before the hook runs. The README says so.
+
+### Writes: the Mirror
+
+* **Write:** `PreToolUse` uses `updatedInput` to swap placeholders back to the real values in `content`. The real file gets the real values. The rewrite applies without a `permissionDecision`, so the user's normal permission flow is unchanged.
+* **Edit:** Claude Code checks that `old_string` exists in the real file before hooks run, so an Edit whose `old_string` contains a placeholder always fails. Neither `PreToolUse` nor `PostToolUseFailure` fires for it. Basilisk handles this in two ways:
+  * **Steer up front.** When Read output is petrified, the same hook adds `additionalContext`: "This file contains Basilisk placeholders (⟦…⟧). To change a line that contains one, rewrite the file with Write; Edit can't match placeholder text." The probes confirmed the model sees this context.
+  * **Edits that don't touch a placeholder** work as normal, with no Mirror needed. `PreToolUse` still swaps any placeholders in `new_string`.
 
 ### Shared rules
 
@@ -52,7 +62,7 @@ Hooks are on by default in Codex. Events include `PreToolUse`, `PostToolUse`, `U
 * **Block mode: full support.** `UserPromptSubmit` blocks prompts. `PreToolUse` denies shell, `apply_patch` and MCP calls that touch protected data.
 * **Petrify mode: limited.**
   * `PostToolUse` can't rewrite output; `updatedMCPToolOutput` is parsed but not supported. A block replaces the result with feedback, which hides the output but gives the model nothing to work with.
-  * So only Layer 1 exists, and only for shell. Codex accepts a rewrite only when it's paired with `permissionDecision: "allow"`, and `"ask"` isn't supported. Every rewritten command is therefore auto-approved, bypassing Codex's own approvals.
+  * So petrify on Codex can only rewrite inputs, and only for shell. Codex accepts a rewrite only when it's paired with `permissionDecision: "allow"`, and `"ask"` isn't supported. Every rewritten command is therefore auto-approved, bypassing Codex's own approvals.
   * v1 rewrites only the read-only allowlist. Everything else follows block-mode rules.
 * **Mirror on Codex:** possible by rewriting `apply_patch` input, but that also auto-approves the patch. It ships off by default.
 * The README states all of this plainly.
@@ -199,7 +209,7 @@ basilisk/
 * **Benchmark against:** Microsoft Presidio, GLiNER2-PII (Fastino, 0.3B params, 42 PII types) and nullpii (GLiNER + regex + reversible vault, the closest prior art).
 * **Differentiators:**
   * native Claude Code and Codex hooks with block and petrify modes
-  * fail-closed petrification of reads, with output rewriting as a second layer
+  * petrification grounded in probed hook behaviour, built so that its fail-open layer can't fail
   * the Mirror (code the agent writes stays correct)
   * column-aware petrification
   * a small local Go binary with no Python or model required
@@ -222,6 +232,10 @@ Run with `probes/run.sh`: headless Haiku, synthetic canary, one fresh temp proje
 | Write with placeholders (the Mirror) | Works. `PreToolUse` swaps them back, and the real file gets the real values. |
 | Where real values still land on disk | Write's `toolUseResult` (`content`, `originalFile`) and the logged hook stdout in the transcript. Neither is model-visible, and the values are in the real file anyway. |
 | Model behaviour after failed Edits | With Bash available, the model ran `od -c` on the file and read the real value as a character dump. |
+| `additionalContext` from `PostToolUse` | Reaches the model. It repeated the note back word for word. |
+| `PostToolUseFailure` on Edit's "string not found" | **Doesn't fire.** Validation errors bypass it. |
+| Grep and Glob | Not tools in this version. The model searches with `grep` and `ls` through Bash. |
+| Bash's output shape | `{stdout, stderr, interrupted, isImage, noOutputExpected}` |
 
 What this means for the design:
 
@@ -231,17 +245,13 @@ What this means for the design:
    * no panics
    * the default 600s timeout instead of a short one
    * a `PreToolUse` deny for tools whose shape isn't pinned
-3. **The Mirror needs another route for Edit.** Write works. For an Edit whose `old_string` contains a placeholder, candidates are:
-   * a `PostToolUseFailure` hook that tells the model to use Write or `basilisk edit` instead
-   * a Basilisk-provided edit command
-
-   Whether `PostToolUseFailure` fires for validation errors is untested.
+3. **The Mirror needs another route for Edit.** Write works. `PostToolUseFailure` doesn't fire for Edit's validation errors, so Basilisk steers the model up front instead, with `additionalContext` on the petrified Read.
 4. **Bash is the bypass.** The model will read files through Bash when its other tools fail. Bash output must be petrified too, and since the vault knows the exact real values, Basilisk can match them in common encodings (raw, `od -c`, hex, base64), not just with detectors.
 
 ## Open questions
 
 1. **`@file` mentions:** does `UserPromptSubmit` see the contents of `@`-mentioned files?
-2. **`PostToolUseFailure`:** does it fire for Edit's validation errors, and can it add context the model sees?
-3. **Output shapes for other tools:** Grep, Glob, NotebookRead and WebFetch.
+2. **Output shapes for other tools:** NotebookEdit, WebFetch and MCP tools.
+3. **Steering:** does the `additionalContext` note actually stop the model from trying Edit on placeholder lines?
 4. **Permission modes:** does `updatedInput` without a decision also apply in default mode, or does it change what the permission prompt shows?
 5. **Codex details:** the minimum version for each hook event, and whether Codex has built-in read tools besides shell that `PreToolUse` covers.

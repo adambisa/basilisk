@@ -10,6 +10,8 @@ Every payload is appended to <logdir>/<mode>.jsonl. Modes:
   pre_redirect_edit   as pre_redirect, and point Edit/Write of secret.txt at the copy too
   post_mirror         PostToolUse: replace the canary in Read output; PreToolUse: swap the
                       placeholder back in Edit/Write input (the Mirror), no permissionDecision
+  ctx_note            PostToolUse: attach additionalContext to the Read result
+  fail_note           PostToolUseFailure: attach additionalContext to a failed Edit
 """
 
 import json
@@ -42,6 +44,11 @@ def respond(output):
 
 
 event, tool, tool_input = data["hook_event_name"], data.get("tool_name"), data.get("tool_input", {})
+
+if mode == "ctx_note" and event == "PostToolUse":
+    respond({"hookEventName": event, "additionalContext": "BASILISK-NOTE-91"})
+if mode == "fail_note" and event == "PostToolUseFailure":
+    respond({"hookEventName": event, "additionalContext": "BASILISK-FAIL-55"})
 
 if mode.startswith("post_mirror"):
     if event == "PostToolUse" and tool == "Read":

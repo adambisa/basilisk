@@ -15,14 +15,27 @@ mirror_prompt='Use the Read tool to read secret.txt. Then use the Edit tool on s
 
 write_prompt='Use the Read tool to read secret.txt. Then use the Write tool to rewrite secret.txt with exactly the same two lines plus a third line: checked = true. Finally reply with the exact value of project_code, verbatim, nothing else.'
 
+ctx_prompt='Use the Read tool to read secret.txt. Then reply with any additional context a hook attached to that tool result, verbatim, or NONE if there was none.'
+fail_prompt='Use the Read tool to read secret.txt. Then use the Edit tool on secret.txt to change the text "no such line" to "x" (it will fail; do not retry). Then reply with any additional context a hook attached to the failed Edit, verbatim, or NONE if there was none.'
+shapes_prompt='Do exactly these three tool calls, then reply DONE: 1) Grep for project_code in this folder with output_mode "content"; 2) Glob for *.txt; 3) Bash: cat notes.txt'
+
 modes=("$@")
-[ ${#modes[@]} -eq 0 ] && modes=(log post_replace post_bad post_crash post_timeout pre_redirect pre_redirect_edit post_mirror post_mirror_write)
+[ ${#modes[@]} -eq 0 ] && modes=(log post_replace post_bad post_crash post_timeout pre_redirect pre_redirect_edit post_mirror post_mirror_write ctx_note fail_note shapes)
 
 hook_cmd() { echo "python3 -I $here/hook.py $1 $runs/$2"; }
 
 settings() {
   local mode=$1
-  if [[ $mode == post_mirror* ]]; then
+  if [[ $mode == ctx_note ]]; then
+    jq -n --arg h "$(hook_cmd "$mode" "$mode")" '{hooks: {
+      PostToolUse: [{matcher: "Read", hooks: [{type: "command", command: $h}]}]}}'
+  elif [[ $mode == fail_note ]]; then
+    jq -n --arg h "$(hook_cmd "$mode" "$mode")" '{hooks: {
+      PostToolUseFailure: [{matcher: "Edit", hooks: [{type: "command", command: $h}]}]}}'
+  elif [[ $mode == shapes ]]; then
+    jq -n --arg h "$(hook_cmd log "$mode")" '{hooks: {
+      PostToolUse: [{matcher: "Grep|Glob|Bash", hooks: [{type: "command", command: $h}]}]}}'
+  elif [[ $mode == post_mirror* ]]; then
     jq -n --arg h "$(hook_cmd "$mode" "$mode")" '{hooks: {
       PreToolUse: [{matcher: "Edit|Write", hooks: [{type: "command", command: $h}]}],
       PostToolUse: [{matcher: "Read", hooks: [{type: "command", command: $h}]}]}}'
@@ -43,18 +56,23 @@ probe() {
   mkdir -p "$out"
   proj=$(mktemp -d)
   printf 'project_code = "%s"\nname = "demo"\n' "$canary" > "$proj/secret.txt"
+  cp "$proj/secret.txt" "$proj/notes.txt"
   settings "$mode" > "$out/settings.json"
   prompt=$read_prompt
   [[ $mode == pre_* ]] && prompt=$edit_prompt
   [[ $mode == post_mirror ]] && prompt=$mirror_prompt
   [[ $mode == post_mirror_write ]] && prompt=$write_prompt
+  [[ $mode == ctx_note ]] && prompt=$ctx_prompt
+  [[ $mode == fail_note ]] && prompt=$fail_prompt
+  [[ $mode == shapes ]] && prompt=$shapes_prompt
   local extra=()
-  [[ $mode == post_mirror* ]] && extra=(--disallowedTools Bash)
+  [[ $mode == post_mirror* || $mode == fail_note ]] && extra=(--disallowedTools Bash)
+  [[ $mode == shapes ]] && extra=(--allowedTools "Bash(cat:*)")
 
   # Clean env so the desktop app's session variables don't leak into the child CLI.
   (cd "$proj" && env -i HOME="$HOME" PATH="$PATH" USER="$USER" TERM="${TERM:-xterm}" \
     claude -p "$prompt" --model haiku --setting-sources project,local \
-      --settings "$out/settings.json" --permission-mode acceptEdits --output-format json "${extra[@]}") \
+      --settings "$out/settings.json" --permission-mode acceptEdits --output-format json ${extra[@]+"${extra[@]}"} < /dev/null) \
     > "$out/result.json" 2> "$out/stderr.txt"
 
   local sid transcript
