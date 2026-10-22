@@ -16,4 +16,6 @@ Design phase. Nothing is usable yet.
 
 ## License
 
-MIT
+Apache 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). If you redistribute Basilisk or build on it, keep the NOTICE file with it.
+
+If Basilisk helps you, a mention or a link back is appreciated.
