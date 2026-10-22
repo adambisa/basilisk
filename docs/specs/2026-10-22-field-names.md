@@ -49,6 +49,7 @@ type Detector interface {
    * `customer_email` matches `email`.
    * `email_verified` ends in `verified`, so nothing matches.
    * `filename` is one word, so it doesn't match `name`.
+5. **Filler fallback.** If nothing matched, drop trailing filler words (`number`, `num`, `no`, `nr`) and try step 4 again. So `SSNNumber` (`ssn number`) matches `ssn`, while `account number` still matches its own entry first.
 
 ### Initial keyword table (`en-US`)
 
