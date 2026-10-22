@@ -1,5 +1,5 @@
 // Command basilisk keeps PII and secrets away from coding agents.
-// Only the command surface exists so far; every subcommand is a stub.
+// Only scan is implemented so far; the other subcommands are stubs.
 package main
 
 import (
@@ -22,11 +22,11 @@ Usage:
 `
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
 
 // run dispatches a subcommand and returns the process exit code.
-func run(args []string, stdout, stderr io.Writer) int {
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)
 		return 2
@@ -44,7 +44,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		return notImplemented(stderr, "hook "+args[1])
-	case "scan", "petrify", "mirror":
+	case "scan":
+		return runScan(args[1:], stdin, stdout, stderr)
+	case "petrify", "mirror":
 		return notImplemented(stderr, args[0])
 	default:
 		fmt.Fprintf(stderr, "basilisk: unknown command %q\n\n%s", args[0], usage)

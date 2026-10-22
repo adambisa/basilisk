@@ -1,0 +1,8 @@
+19-27 PERSON 0.70 fieldname/json field=name "Jane Roe"
+40-56 EMAIL 0.90 fieldname/json field=email "jane@example.com"
+93-101 PERSON 0.70 fieldname/json field=name "Rick Doe"
+114-130 EMAIL 0.90 fieldname/json field=email "rick@example.com"
+209-218 SSN 0.95 fieldname/json field=ssn "078051120"
+243-247 USERNAME 0.60 fieldname/json field=username "jroe"
+263-270 SECRET 0.90 fieldname/json field=password "hunter2"
+307-317 IP_ADDRESS 0.60 fieldname/json field=ip "192.0.2.10"

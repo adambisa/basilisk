@@ -1,0 +1,4 @@
+{"id": 1, "name": "Jane Roe", "email": "jane@example.com", "plan": "pro"}
+{"id": 2, "name": "Rick Doe", "email": "rick@example.com", "plan": "free"}
+{"id": 3, "name": "", "email": null, "plan": "free", "ssn": 078051120}
+{"id": 4, "username": "jroe", "password": "hunter2", "file_name": "avatar.png", "ip": "192.0.2.10"}

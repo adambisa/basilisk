@@ -1,0 +1,4 @@
+36-44 PERSON 0.70 fieldname/table field=full_name "Jane Roe"
+45-56 SSN 0.95 fieldname/table field=ssn "078-05-1120"
+81-89 PERSON 0.70 fieldname/table field=full_name "Rick Doe"
+90-101 SSN 0.95 fieldname/table field=ssn "078-05-1120"

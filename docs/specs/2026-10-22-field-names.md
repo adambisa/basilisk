@@ -36,7 +36,7 @@ type Detector interface {
 }
 ```
 
-`FieldNames` implements `Detector`. It runs the JSON scanner and the table scanner and returns their matches sorted by `Start`. When spans overlap, the match with the higher score wins.
+`FieldNames` implements `Detector`. It runs the JSON scanner and the table scanner and returns their matches sorted by `Start`. Overlapping spans are merged into one match covering their union, so no matched byte goes uncovered. Its Type, Score, Detector and Field come from the highest-scored match of the group, and on equal scores from the one with the earliest Start.
 
 ## Classifying a field name
 
@@ -66,7 +66,7 @@ type Detector interface {
 | `ROUTING_NUMBER` | 0.9 | routing number, aba |
 | `SECRET` | 0.9 | password, passwd, pwd, secret, client secret, api key, apikey, access token, auth token, refresh token, token, private key, credential |
 | `EMAIL` | 0.9 | email, e mail, email address |
-| `PHONE` | 0.9 | phone, phone number, telephone, tel, mobile, cell, cell phone, fax |
+| `PHONE` | 0.9 | phone, phone number, telephone, tel, mobile, cell phone, cellphone, fax |
 | `DOB` | 0.9 | dob, birthdate, birth date, date of birth, birthday |
 | `IP_ADDRESS` | 0.6 | ip, ip address, ipaddr |
 | `PERSON` | 0.7 | name, firstname, lastname, fullname, surname, given name, family name, middle name, maiden name |
@@ -90,11 +90,14 @@ A single pass over the bytes, not `encoding/json`.
   * An inner key with its own match uses its own type. An inner key that maps to *skip* turns the inheritance off for its value.
   * A closer with no matching opener is ignored.
 * **Truncation:** a string under a sensitive key that never closes is flagged up to the end of its line (fail closed).
+  * A string that ends unterminated (at a raw newline or at the end of input) clears the stack of open containers, so a cut does not make everything after it inherit the open sensitive context. A raw newline cannot occur inside valid JSON, so pretty-printed JSON is unaffected.
+  * A `{` or `[` in column 0 (the first byte of a line) while containers are open starts a new NDJSON record: the stack and any pending key are cleared before it is pushed. Pretty printers indent nested openers.
+  * A `\r` before the newline that ends an unterminated string is not part of the flagged span.
 * **Not covered:** JSON escaped inside another JSON string (`"{\"email\":\"x\"}"`), single-quoted Python dicts, and YAML.
 
 ## Table scanner
 
-Line by line.
+Line by line. A leading UTF-8 BOM is skipped (Excel's "CSV UTF-8" export starts with one); spans stay offsets into the original text.
 
 * **Header:** a line is a header candidate for delimiter `d` (`,`, tab, `;` or `|`) when:
   * it splits into at least two cells
@@ -107,12 +110,13 @@ Line by line.
   * Empty cells and `NULL` / `null` are skipped.
 * **Separators:** lines made only of `-`, `+`, `|`, `:` and spaces (`psql`'s `---+---`, markdown's `|---|`) are skipped without ending the table.
 * **End of table:** a row with a different cell count ends the table, and so does a `psql` footer like `(3 rows)`. The next line can start a new table.
-* **Not covered:** quoted CSV cells that span several lines, and fragments without a header (`tail users.csv`).
+* **Not covered:** quoted CSV cells that span several lines, fragments without a header (`tail users.csv`), and `psql` expanded output (`\x`) and two-column key/value tables. Their first line is read as a header, so their values are missed.
 
 ## `basilisk scan`
 
 * **Input:** reads stdin, or the files given as arguments.
 * **Output:** one line per match, without printing the value. Positions are `line:column`, 1-based, with columns in bytes; stdin shows as `-`.
+  Field names containing control or non-printable characters are printed Go-quoted.
 
   ```
   users.csv:3:14-3:31  EMAIL  0.90  fieldname/table  field=email

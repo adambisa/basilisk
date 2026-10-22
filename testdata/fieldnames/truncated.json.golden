@@ -1,0 +1,8 @@
+19-27 PERSON 0.70 fieldname/json field=name "Jane Roe"
+40-56 EMAIL 0.90 fieldname/json field=email "jane@example.com"
+69-75 PHONE 0.90 fieldname/json field=phone "555-01"
+96-104 PERSON 0.70 fieldname/json field=name "Rick Doe"
+117-133 EMAIL 0.90 fieldname/json field=email "rick@example.com"
+179-188 EMAIL 0.90 fieldname/json field=email "jane@exam"
+212-228 EMAIL 0.90 fieldname/json field=emails "jane@example.com"
+232-240 EMAIL 0.90 fieldname/json field=emails "rick@exa"

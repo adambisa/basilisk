@@ -1,0 +1,7 @@
+37-45 PERSON 0.70 fieldname/table field=name "Jane Roe"
+46-62 EMAIL 0.90 fieldname/table field=email "jane@example.com"
+63-71 PHONE 0.90 fieldname/table field=phone "555-0100"
+85-94 PERSON 0.70 fieldname/table field=name "Roe, Rick"
+96-112 EMAIL 0.90 fieldname/table field=email "rick@example.com"
+128-142 PERSON 0.70 fieldname/table field=name "Poe \"\"Jr\"\" Sam"
+149-157 PHONE 0.90 fieldname/table field=phone "555-0103"

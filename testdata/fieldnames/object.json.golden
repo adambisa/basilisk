@@ -1,0 +1,8 @@
+20-28 PERSON 0.70 fieldname/json field=name "Jane Roe"
+41-57 EMAIL 0.90 fieldname/json field=email "jane@example.com"
+94-102 PHONE 0.90 fieldname/json field=phone "555-0100"
+113-124 SSN 0.95 fieldname/json field=ssn "078-05-1120"
+204-220 EMAIL 0.90 fieldname/json field=emails "jane@example.com"
+224-241 EMAIL 0.90 fieldname/json field=emails "j.roe@example.com"
+267-280 ADDRESS 0.70 fieldname/json field=address "12 Elm Street"
+292-303 ADDRESS 0.50 fieldname/json field=city "Springfield"

@@ -16,7 +16,12 @@ Basilisk reduces exposure. It is not a compliance guarantee: no tool can detect 
 
 ## Status
 
-Design phase. Nothing is usable yet.
+Early. `basilisk scan` finds PII in JSON and table output (CSV, TSV, `psql`, markdown) by field name, and prints where without printing the values. The hooks, block mode and petrify mode aren't built yet.
+
+```bash
+go run ./cmd/basilisk scan users.csv
+psql -c 'select * from customers' | go run ./cmd/basilisk scan
+```
 
 - [docs/design.md](docs/design.md): the design, mapped to what the Claude Code and Codex hook APIs allow.
 - [probes/](probes/): small experiments that check hook behaviour the docs don't cover.

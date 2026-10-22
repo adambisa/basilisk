@@ -1,0 +1,5 @@
+105-113 PERSON 0.70 fieldname/json field=name "Jane Roe"
+124-140 EMAIL 0.90 fieldname/json field=email "jane@example.com"
+304-312 PHONE 0.90 fieldname/json field=phone "555-0102"
+393-401 PERSON 0.70 fieldname/json field=name "Rick Doe"
+412-423 SSN 0.95 fieldname/json field=ssn "078-05-1120"

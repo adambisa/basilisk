@@ -1,0 +1,23 @@
+{
+  "order_id": 1007,
+  "customer": {
+    "full_name": "Jane Roe",
+    "contactEmail": "jane@example.com",
+    "phone_number": "555-0101",
+    "dob": "1980-02-03",
+    "verified": true
+  },
+  "shipping": {
+    "address": {
+      "line1": "12 Elm Street",
+      "line2": "Apt 4",
+      "zip": "62704"
+    },
+    "file_name": "label.pdf"
+  },
+  "api_key": "sk_test_0123456789",
+  "items": [
+    {"sku": "A-100", "qty": 2}
+  ],
+  "notes": "ship fast"
+}

@@ -1,0 +1,6 @@
+2026-10-22T09:14:01Z INFO  server started on port 8080
+2026-10-22T09:14:07Z INFO  login ok user={"name":"Jane Roe","email":"jane@example.com","plan":"pro"} ip=192.0.2.10
+2026-10-22T09:14:09Z DEBUG cache hit key=session:41
+2026-10-22T09:14:12Z WARN  upload failed payload={"file_name":"scan.pdf","phone":"555-0102","size":2048}
+2026-10-22T09:14:15Z ERROR charge declined {"customer": {"name": "Rick Doe", "ssn": "078-05-1120"}, "amount": 1999, "email_verified": false}
+2026-10-22T09:14:20Z INFO  shutdown complete

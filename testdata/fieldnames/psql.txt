@@ -1,0 +1,7 @@
+ id |   name   |       email        |  phone   | host_name | plan 
+----+----------+--------------------+----------+-----------+------
+  1 | Jane Roe | jane@example.com   | 555-0100 | db1       | pro
+  2 | Rick Doe | rick@example.com   |          | db2       | free
+  3 | Sam Poe  |                    | 555-0104 | db3       | free
+(3 rows)
+

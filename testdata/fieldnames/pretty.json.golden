@@ -1,0 +1,8 @@
+56-64 PERSON 0.70 fieldname/json field=full_name "Jane Roe"
+88-104 EMAIL 0.90 fieldname/json field=contactEmail "jane@example.com"
+128-136 PHONE 0.90 fieldname/json field=phone_number "555-0101"
+151-161 DOB 0.90 fieldname/json field=dob "1980-02-03"
+239-252 ADDRESS 0.70 fieldname/json field=address "12 Elm Street"
+271-276 ADDRESS 0.70 fieldname/json field=address "Apt 4"
+293-298 ADDRESS 0.70 fieldname/json field=zip "62704"
+355-373 SECRET 0.90 fieldname/json field=api_key "sk_test_0123456789"

@@ -1,0 +1,4 @@
+id	full_name	ssn	mac_address	plan
+1	Jane Roe	078-05-1120	00:1b:44:11:3a:b7	pro
+2	Rick Doe	078-05-1120	00:1b:44:11:3a:b8	free
+3		null	00:1b:44:11:3a:b9	free

@@ -1,0 +1,1 @@
+{"id": 41, "name": "Jane Roe", "email": "jane@example.com", "email_verified": true, "phone": "555-0100", "ssn": "078-05-1120", "file_name": "report.pdf", "nickname": null, "status": "active", "emails": ["jane@example.com", "j.roe@example.com"], "address": {"line1": "12 Elm Street", "city": "Springfield", "mac_address": "00:1b:44:11:3a:b7"}}
