@@ -1,0 +1,2 @@
+street_suffixes.txt: https://pe.usps.com/text/pub28/28apc_002.htm (retrieved 2026-10-23)
+tlds.txt: https://data.iana.org/TLD/tlds-alpha-by-domain.txt (retrieved 2026-10-23)

@@ -1,1 +1,2 @@
 internal/detect/secret_rules.json linguist-generated=true
+internal/detect/data/* linguist-generated=true

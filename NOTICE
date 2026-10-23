@@ -3,3 +3,5 @@ Copyright 2026 Adam Bisa
 https://github.com/adambisa/basilisk
 
 Secret rules from gitleaks (https://github.com/gitleaks/gitleaks), MIT License.
+
+TLD list from IANA and street-suffix list from USPS Publication 28 (public domain).
