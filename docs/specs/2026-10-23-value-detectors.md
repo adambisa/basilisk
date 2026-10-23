@@ -37,7 +37,7 @@ type All struct{}    // Detector: FieldNames + Values, merged
 ## Shared rules
 
 * **Two passes:** a cheap scan for candidates, then validation of each candidate.
-* **Boundaries:** a candidate must not touch a letter or digit on either side (`[A-Za-z0-9]`). For grouped numbers, the groups must not continue past the candidate.
+* **Boundaries:** a candidate must not touch a letter or digit on either side (`[A-Za-z0-9]`). A grouped run that fails validation as a whole is retried on windows of consecutive groups: a single group of 13–19 digits, or groups whose sizes exactly match a card layout. A single ungrouped run longer than 19 digits is rejected whole. A layout window (4-4-4-4, 4-4-4-4-3 or 4-6-5) cut out of a longer run counts as layout evidence only when the rest of the run is exactly one group of at most 4 digits (a CVV or a leading count), or groups that split entirely into valid card windows (cards side by side). Otherwise it scores as bare: 0.75, or 0.95 with a keyword. A whole run that matches a layout is unchanged.
 * **Keyword evidence:** a detector's keyword list is matched case-insensitively, as whole words, in the 32 bytes before the candidate on the same line.
 * **Overlaps:** when two value rules overlap, the union rule keeps the higher score's metadata.
 
@@ -75,7 +75,7 @@ type All struct{}    // Detector: FieldNames + Values, merged
 
 ## Passport MRZ (`mrz.go`)
 
-* **Candidate:** two consecutive lines of exactly 44 characters from `[A-Z0-9<]`, after trimming trailing `\r` and spaces. The first line starts with `P`.
+* **Candidate:** two consecutive lines of exactly 44 characters from `[A-Z0-9<]`, after trimming leading and trailing spaces and tabs, and a trailing `\r`. The first line starts with `P`.
 * **Valid:** all four check digits on line 2 pass the ICAO 9303 7-3-1 weighted mod-10 check, with `<` counting as 0:
   * document number
   * date of birth
@@ -99,7 +99,7 @@ type All struct{}    // Detector: FieldNames + Values, merged
 ## Secrets (`secrets.go`)
 
 * **Source:** gitleaks' `config/gitleaks.toml` (MIT), pinned to one release tag.
-  * The vendored file and gitleaks' LICENSE live in `third_party/gitleaks/`.
+  * The pinned tag and gitleaks' LICENSE live in `third_party/gitleaks/`; the generator downloads `config/gitleaks.toml` at that tag.
   * `NOTICE` gets the line: "Secret rules from gitleaks (https://github.com/gitleaks/gitleaks), MIT License."
 * **Generator:** `scripts/gen_secret_rules.py`, which needs only the standard library (`tomllib`, Python 3.11+).
   * It converts the TOML into `internal/detect/secret_rules.json`, keeping each rule's `id`, `regex`, `secretGroup`, `entropy`, `keywords` and allowlists (`regexes`, `stopwords`).
@@ -107,11 +107,12 @@ type All struct{}    // Detector: FieldNames + Values, merged
   * It runs from a `//go:generate` line in `secrets.go`.
   * The JSON is committed, so building Basilisk never needs Python.
 * **Rules without a regex** (gitleaks' path-only rules) are left out by the generator; Basilisk scans text, not paths.
+* **Rules with a `path` filter:** rules that also have a `path` filter in gitleaks (freemius, hashicorp-tf-password, kubernetes-secret-yaml, nuget-config-password) run on all text, since Basilisk scans text, not files.
 * **Runtime:** for each rule, as gitleaks does it:
   1. If the rule has keywords, skip it unless one of them appears in the text (case-insensitive).
-  2. Run the regex. The span is the capture group named by `secretGroup`, or the whole match.
-  3. Drop the match when the rule sets an entropy minimum and the secret's Shannon entropy is below it, or when a rule or global allowlist regex or stopword matches.
-* **Score:** 0.95 for provider rules. 0.7 for `generic-api-key`, which matches many strings that aren't keys.
+  2. Run the regex. The span is the capture group named by `secretGroup`; without one, the first non-empty capture group, as gitleaks does; without groups, the whole match.
+  3. Drop the match when the rule sets an entropy minimum and the secret's Shannon entropy is below it, or when a rule or global allowlist regex or stopword matches. (gitleaks skips at equality; Basilisk flags it, failing closed.)
+* **Score:** 0.95 for provider rules. 0.7 for `generic-api-key`, which matches many strings that aren't keys. `sourcegraph-access-token` matches without the `sgp_` prefix score 0.6, because its bare 40-hex alternative also matches git SHAs.
 * **Compilation:** every regex is compiled once, at first use. A rule whose regex fails to compile is skipped, and the generator's own test fails on it.
 
 ## Testing
@@ -123,7 +124,7 @@ type All struct{}    // Detector: FieldNames + Values, merged
   * known Bitcoin addresses (legacy, P2SH, bech32, bech32m)
   * the EIP-55 test addresses
   * synthetic tokens for a sample of gitleaks rules (AWS, GitHub, Slack, Stripe, OpenAI, Anthropic, generic)
-* **Keccak-256:** digests for `""`, `"abc"` and a 200-byte input.
+* **Keccak-256:** digests for `""`, `"abc"` and 135-, 136-, 137- and 300-byte inputs.
 * **No-PII guard:** `testdata/values/clean/` holds:
   * Go source
   * logs with timestamps and durations

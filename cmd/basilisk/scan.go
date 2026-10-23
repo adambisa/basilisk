@@ -18,12 +18,12 @@ func runScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var found, failed bool
 	scan := func(name string, text string) {
 		cur := newLineCursor(text)
-		for _, m := range (detect.FieldNames{}).Find(text) {
+		for _, m := range (detect.All{}).Find(text) {
 			found = true
 			l1, c1 := cur.at(m.Start)
 			l2, c2 := cur.at(m.End)
-			fmt.Fprintf(stdout, "%s:%d:%d-%d:%d  %s  %.2f  %s  field=%s\n",
-				name, l1, c1, l2, c2, m.Type, m.Score, m.Detector, printableField(m.Field))
+			fmt.Fprintf(stdout, "%s:%d:%d-%d:%d  %s  %.2f  %s  %s\n",
+				name, l1, c1, l2, c2, m.Type, m.Score, m.Detector, matchLabel(m))
 		}
 	}
 
@@ -52,6 +52,15 @@ func runScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// matchLabel names what triggered a match: rule=<rule> for a value match, which
+// has no field, otherwise field=<field>.
+func matchLabel(m detect.Match) string {
+	if m.Field == "" && m.Rule != "" {
+		return "rule=" + m.Rule
+	}
+	return "field=" + printableField(m.Field)
 }
 
 // printableField makes a field name safe to print. The name is text from the

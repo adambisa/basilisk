@@ -23,6 +23,7 @@ const (
 	TypePerson        EntityType = "PERSON"
 	TypeUsername      EntityType = "USERNAME"
 	TypeAddress       EntityType = "ADDRESS"
+	TypeCryptoWallet  EntityType = "CRYPTO_WALLET"
 )
 
 // Match is one piece of sensitive data found in a text.
@@ -33,6 +34,7 @@ type Match struct {
 	Score    float64 // confidence, 0..1
 	Detector string  // which detector found it, e.g. "fieldname/json"
 	Field    string  // the key or header that triggered the match, if any
+	Rule     string  // the value rule that matched, e.g. "card/visa"; empty for field-name matches
 }
 
 // Detector finds sensitive data in a text. Spans in the returned matches are

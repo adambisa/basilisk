@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/adambisa/basilisk/internal/detect"
 )
 
 func TestRun(t *testing.T) {
@@ -77,6 +79,12 @@ func TestScan(t *testing.T) {
 			wantPrefix: "-:1:11-1:15  PERSON",
 		},
 		{
+			name:       "card in prose",
+			stdin:      "my card is 4111 1111 1111 1111\n",
+			wantCode:   1,
+			wantStdout: "-:1:12-1:31  CARD  0.95  value/card  rule=card/visa\n",
+		},
+		{
 			name:     "nothing found",
 			stdin:    "id,plan\n1,pro\n",
 			wantCode: 0,
@@ -127,7 +135,7 @@ func TestScan(t *testing.T) {
 			if !strings.Contains(stderr.String(), tt.wantStderr) {
 				t.Errorf("stderr = %q, want it to contain %q", stderr.String(), tt.wantStderr)
 			}
-			for _, secret := range []string{"Jane", "j@x.com", "Zoë"} {
+			for _, secret := range []string{"Jane", "j@x.com", "Zoë", "4111"} {
 				if strings.Contains(stdout.String(), secret) || strings.Contains(stderr.String(), secret) {
 					t.Errorf("output leaks the value %q: stdout=%q stderr=%q", secret, stdout.String(), stderr.String())
 				}
@@ -223,5 +231,24 @@ func TestScanEscapesField(t *testing.T) {
 				t.Errorf("stdout = %q, want it to contain %q", out, tt.wantField)
 			}
 		})
+	}
+}
+
+func TestMatchLabel(t *testing.T) {
+	tests := []struct {
+		name string
+		m    detect.Match
+		want string
+	}{
+		{"field", detect.Match{Field: "name"}, "field=name"},
+		{"rule", detect.Match{Rule: "card/visa"}, "rule=card/visa"},
+		{"field wins", detect.Match{Field: "card", Rule: "card/visa"}, "field=card"},
+		{"neither", detect.Match{}, "field="},
+		{"field is escaped", detect.Match{Field: "a\x1bb"}, `field="a\x1bb"`},
+	}
+	for _, tt := range tests {
+		if got := matchLabel(tt.m); got != tt.want {
+			t.Errorf("%s: matchLabel = %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }

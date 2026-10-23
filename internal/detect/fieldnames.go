@@ -17,7 +17,7 @@ func (FieldNames) Find(text string) []Match {
 
 // mergeMatches sorts ms by Start, in place, and merges overlapping matches
 // into one that covers their union, so no matched byte is left uncovered. The
-// Type, Score, Detector and Field come from the highest-scored match of the
+// Type, Score, Detector, Field and Rule come from the highest-scored match of the
 // group, the one with the earliest Start on a tie.
 func mergeMatches(ms []Match) []Match {
 	slices.SortStableFunc(ms, func(a, b Match) int { return cmp.Compare(a.Start, b.Start) })

@@ -1,0 +1,4 @@
+19-38 CARD 0.95 value/card rule=card/visa "4111 1111 1111 1111"
+81-103 BANK_ACCOUNT 0.95 value/iban rule=iban "DE89370400440532013000"
+149-183 CRYPTO_WALLET 0.95 value/crypto rule=crypto/btc-base58 "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+219-261 CRYPTO_WALLET 0.95 value/crypto rule=crypto/eth "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"

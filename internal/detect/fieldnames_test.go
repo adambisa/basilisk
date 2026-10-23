@@ -13,7 +13,7 @@ import (
 
 var update = flag.Bool("update", false, "rewrite golden files")
 
-const fixtureDir = "../../testdata/fieldnames"
+const fixtureDir = "../../testdata/golden"
 
 func TestMergeMatches(t *testing.T) {
 	m := func(start, end int, score float64, field string) Match {
@@ -71,8 +71,12 @@ func TestMergeMatches(t *testing.T) {
 func render(text string, ms []Match) string {
 	var sb strings.Builder
 	for _, m := range ms {
-		fmt.Fprintf(&sb, "%d-%d %s %.2f %s field=%s %q\n",
-			m.Start, m.End, m.Type, m.Score, m.Detector, m.Field, text[m.Start:m.End])
+		label := "field=" + m.Field
+		if m.Field == "" && m.Rule != "" {
+			label = "rule=" + m.Rule
+		}
+		fmt.Fprintf(&sb, "%d-%d %s %.2f %s %s %q\n",
+			m.Start, m.End, m.Type, m.Score, m.Detector, label, text[m.Start:m.End])
 	}
 	return sb.String()
 }
@@ -93,7 +97,53 @@ func fixtures(t testing.TB) []string {
 	return paths
 }
 
-func TestFieldNamesGolden(t *testing.T) {
+const cleanDir = "../../testdata/values/clean"
+
+// cleanFixtures returns the paths of the files that hold no PII.
+func cleanFixtures(t testing.TB) []string {
+	t.Helper()
+	paths, err := filepath.Glob(filepath.Join(cleanDir, "*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return paths
+}
+
+// TestNoPIIGuard asserts that All finds nothing at 0.9 or above in text that
+// holds no PII. A failure names the file, rule and score, never the value.
+func TestNoPIIGuard(t *testing.T) {
+	paths := cleanFixtures(t)
+	if len(paths) == 0 {
+		t.Fatal("no clean fixtures found")
+	}
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range (All{}).Find(string(data)) {
+				if m.Score >= 0.9 {
+					t.Errorf("%s: %s match with score %.2f, field %q, rule %q, span %d-%d (%d bytes)",
+						filepath.Base(path), m.Type, m.Score, m.Field, m.Rule, m.Start, m.End, m.End-m.Start)
+				}
+			}
+		})
+	}
+}
+
+func TestFieldAndValueMerge(t *testing.T) {
+	text := `{"card_number": "4111 1111 1111 1111"}`
+	ms := All{}.Find(text)
+	if len(ms) != 1 {
+		t.Fatalf("got %d matches, want 1: %v", len(ms), ms)
+	}
+	if got := text[ms[0].Start:ms[0].End]; got != "4111 1111 1111 1111" {
+		t.Errorf("match covers %q, want the card number", got)
+	}
+}
+
+func TestGolden(t *testing.T) {
 	paths := fixtures(t)
 	if len(paths) == 0 {
 		t.Fatal("no fixtures found")
@@ -105,7 +155,7 @@ func TestFieldNamesGolden(t *testing.T) {
 				t.Fatal(err)
 			}
 			text := string(data)
-			got := render(text, FieldNames{}.Find(text))
+			got := render(text, All{}.Find(text))
 			golden := path + ".golden"
 			if *update {
 				if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
@@ -124,8 +174,8 @@ func TestFieldNamesGolden(t *testing.T) {
 	}
 }
 
-func FuzzFieldNames(f *testing.F) {
-	for _, path := range fixtures(f) {
+func FuzzAll(f *testing.F) {
+	for _, path := range append(fixtures(f), cleanFixtures(f)...) {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			f.Fatal(err)
@@ -133,7 +183,7 @@ func FuzzFieldNames(f *testing.F) {
 		f.Add(string(data))
 	}
 	f.Fuzz(func(t *testing.T, text string) {
-		ms := FieldNames{}.Find(text)
+		ms := All{}.Find(text)
 		prev := 0
 		for i, m := range ms {
 			if m.Start < 0 || m.Start >= m.End || m.End > len(text) {

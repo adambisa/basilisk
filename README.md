@@ -16,7 +16,7 @@ Basilisk reduces exposure. It is not a compliance guarantee: no tool can detect 
 
 ## Status
 
-Early. `basilisk scan` finds PII in JSON and table output (CSV, TSV, `psql`, markdown) by field name, and prints where without printing the values. The hooks, block mode and petrify mode aren't built yet.
+Early. `basilisk scan` finds PII and secrets in text: by field name in JSON and tables, and by value for cards, IBANs, passport MRZ lines, crypto wallets and API keys. It prints where, without printing the values. The hooks, block mode and petrify mode aren't built yet.
 
 ```bash
 go run ./cmd/basilisk scan users.csv

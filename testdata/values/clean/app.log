@@ -1,0 +1,8 @@
+2026-10-23T08:01:12.431Z INFO  request id=req_7f3a9c21 method=GET path=/api/orders status=200 duration=12.4ms
+2026-10-23T08:01:12.502Z INFO  request id=req_7f3a9c22 method=POST path=/api/orders status=201 duration=48ms bytes=1532
+2026-10-23T08:01:13.017Z WARN  slow query table=orders duration=1.203s rows=18422
+2026-10-23T08:01:14.870Z INFO  worker pool size=8 queued=0 elapsed=3h12m45s
+2026-10-23T08:01:15.002Z ERROR upstream timeout trace=4bf92f3577b34da6a3ce929d0e0e4736 span=00f067aa0ba902b7 after=30000ms
+2026-10-23T08:01:16.250Z DEBUG cache miss key=orders:page:3 ttl=300s
+2026-10-23T08:01:17.911Z INFO  request id=req_7f3a9c23 method=GET path=/healthz status=200 duration=0.3ms
+2026-10-23T08:01:18.004Z INFO  job finished name=nightly-rollup started=1761206400 finished=1761206455 count=1700123456

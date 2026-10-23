@@ -5,4 +5,4 @@
 239-252 ADDRESS 0.70 fieldname/json field=address "12 Elm Street"
 271-276 ADDRESS 0.70 fieldname/json field=address "Apt 4"
 293-298 ADDRESS 0.70 fieldname/json field=zip "62704"
-355-373 SECRET 0.90 fieldname/json field=api_key "sk_test_0123456789"
+355-373 SECRET 0.95 value/secret rule=gitleaks/stripe-access-token "sk_test_0123456789"

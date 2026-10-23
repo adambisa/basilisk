@@ -1,0 +1,32 @@
+commit 7e73806c0d3c9a1b2e4f5a6b7c8d9e0f1a2b3c4d
+Author: Dev Example <dev@example.invalid>
+Date:   Fri Oct 23 09:14:02 2026 +0200
+
+    Add no-PII guard, value goldens and FuzzAll
+
+    Mirrors the sourcegraph/conc layout: one table per detector.
+
+commit 3824793e5f1b0a9c8d7e6f5a4b3c2d1e0f9a8b7c
+Author: Dev Example <dev@example.invalid>
+Date:   Thu Oct 22 17:48:31 2026 +0200
+
+    Download gitleaks config in the generator
+
+    The sourcegraph rule list was too noisy; keep it, score lower.
+
+commit 0c6779f2a1b3c4d5e6f708192a3b4c5d6e7f8091
+Merge: 7486383 d65403e
+Author: Dev Example <dev@example.invalid>
+Date:   Thu Oct 22 11:02:55 2026 +0200
+
+    Merge branch 'secrets' into value-detectors
+
+commit 7486383c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f40
+Author: Dev Example <dev@example.invalid>
+Date:   Wed Oct 21 16:20:10 2026 +0200
+
+    Add Keccak-256 and crypto wallet detector
+
+index 1d2c3b4..9f8e7d6 100644
+--- a/internal/detect/crypto.go
++++ b/internal/detect/crypto.go
