@@ -24,6 +24,8 @@ const (
 	TypeUsername      EntityType = "USERNAME"
 	TypeAddress       EntityType = "ADDRESS"
 	TypeCryptoWallet  EntityType = "CRYPTO_WALLET"
+	TypeMAC           EntityType = "MAC_ADDRESS"
+	TypeVIN           EntityType = "VIN"
 )
 
 // Match is one piece of sensitive data found in a text.
@@ -35,6 +37,9 @@ type Match struct {
 	Detector string  // which detector found it, e.g. "fieldname/json"
 	Field    string  // the key or header that triggered the match, if any
 	Rule     string  // the value rule that matched, e.g. "card/visa"; empty for field-name matches
+	// Evidence is the log-odds evidence, e.g. "prior-2.5 first:t3+2.0"; empty
+	// for Tier 1 and field-name matches.
+	Evidence string
 }
 
 // Detector finds sensitive data in a text. Spans in the returned matches are
